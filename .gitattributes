@@ -1,0 +1,5 @@
+# Normalise line endings so the repo does not churn between Windows and Linux.
+* text=auto eol=lf
+
+*.db    binary
+*.png   binary

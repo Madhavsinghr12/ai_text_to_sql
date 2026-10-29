@@ -1,0 +1,442 @@
+# Evaluation set: 40 questions, each with reference SQL that defines the correct
+# answer. Reference results are computed from the database at run time, so the
+# expectations cannot drift from the fixture.
+#
+# order_matters: true only where the question asks for a ranking or a sequence.
+# Otherwise rows are compared as a multiset, so a semantically correct query that
+# happens to return rows in a different order still counts as correct.
+
+- id: q01
+  difficulty: basic
+  question: "How many customers are in the database?"
+  reference_sql: |
+    SELECT COUNT(*) AS customers FROM customers
+
+- id: q02
+  difficulty: basic
+  question: "How many products are currently active?"
+  reference_sql: |
+    SELECT COUNT(*) AS active_products FROM products WHERE active = 1
+
+- id: q03
+  difficulty: basic
+  question: "How many orders were cancelled?"
+  reference_sql: |
+    SELECT COUNT(*) AS cancelled_orders FROM orders WHERE status = 'cancelled'
+
+- id: q04
+  difficulty: basic
+  question: "How many distinct countries do customers come from?"
+  reference_sql: |
+    SELECT COUNT(DISTINCT country) AS countries FROM customers
+
+- id: q05
+  difficulty: basic
+  question: "How many orders were placed in 2025?"
+  reference_sql: |
+    SELECT COUNT(*) AS orders_2025
+    FROM orders
+    WHERE order_date >= '2025-01-01' AND order_date < '2026-01-01'
+
+- id: q06
+  difficulty: basic
+  question: "What is the average unit price of products in the Audio category?"
+  reference_sql: |
+    SELECT ROUND(AVG(p.unit_price), 2) AS avg_price
+    FROM products p
+    JOIN categories c ON c.id = p.category_id
+    WHERE c.name = 'Audio'
+
+- id: q07
+  difficulty: basic
+  question: "Which products in the Toys category cost less than 20 dollars?"
+  reference_sql: |
+    SELECT p.name, p.unit_price
+    FROM products p
+    JOIN categories c ON c.id = p.category_id
+    WHERE c.name = 'Toys' AND p.unit_price < 20
+    ORDER BY p.unit_price ASC
+  order_matters: true
+
+- id: q08
+  difficulty: basic
+  question: "How many returns were recorded?"
+  reference_sql: |
+    SELECT COUNT(*) AS returns FROM returns
+
+- id: q09
+  difficulty: basic
+  question: "How many customers signed up in 2026?"
+  reference_sql: |
+    SELECT COUNT(*) AS new_customers
+    FROM customers
+    WHERE signup_date >= '2026-01-01' AND signup_date < '2027-01-01'
+
+- id: q10
+  difficulty: basic
+  question: "How many orders came through the web channel in 2025?"
+  reference_sql: |
+    SELECT COUNT(*) AS web_orders
+    FROM orders
+    WHERE channel = 'web'
+      AND order_date >= '2025-01-01' AND order_date < '2026-01-01'
+
+- id: q11
+  difficulty: basic
+  question: "How many orders are there for each status?"
+  reference_sql: |
+    SELECT status, COUNT(*) AS orders
+    FROM orders
+    GROUP BY status
+
+- id: q12
+  difficulty: basic
+  question: "What are the three most common return reasons?"
+  reference_sql: |
+    SELECT reason, COUNT(*) AS return_count
+    FROM returns
+    GROUP BY reason
+    ORDER BY return_count DESC
+    LIMIT 3
+  order_matters: true
+
+- id: q13
+  difficulty: basic
+  question: "What is the cheapest product we sell?"
+  reference_sql: |
+    SELECT name, unit_price
+    FROM products
+    ORDER BY unit_price ASC
+    LIMIT 1
+  order_matters: true
+
+- id: q14
+  difficulty: basic
+  question: "How many products are in the Computers category?"
+  reference_sql: |
+    SELECT COUNT(*) AS products
+    FROM products p
+    JOIN categories c ON c.id = p.category_id
+    WHERE c.name = 'Computers'
+
+- id: q15
+  difficulty: intermediate
+  question: "What was total revenue in September 2026?"
+  reference_sql: |
+    SELECT ROUND(SUM(oi.quantity * oi.unit_price), 2) AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE o.status = 'completed'
+      AND o.order_date >= '2026-09-01' AND o.order_date < '2026-10-01'
+
+- id: q16
+  difficulty: intermediate
+  question: "What was revenue by sales channel in 2026?"
+  reference_sql: |
+    SELECT o.channel, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE o.status = 'completed'
+      AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+    GROUP BY o.channel
+
+- id: q17
+  difficulty: intermediate
+  question: "How many customers are there per country?"
+  reference_sql: |
+    SELECT country, COUNT(*) AS customers
+    FROM customers
+    GROUP BY country
+
+- id: q18
+  difficulty: intermediate
+  question: "Which five products generated the most revenue in 2026?"
+  reference_sql: |
+    SELECT p.name, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    JOIN products p ON p.id = oi.product_id
+    WHERE o.status = 'completed'
+      AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+    GROUP BY p.id, p.name
+    ORDER BY revenue DESC
+    LIMIT 5
+  order_matters: true
+
+- id: q19
+  difficulty: intermediate
+  question: "What was the average order value for completed orders in 2025?"
+  reference_sql: |
+    SELECT ROUND(AVG(order_total), 2) AS avg_order_value
+    FROM (
+        SELECT o.id, SUM(oi.quantity * oi.unit_price) AS order_total
+        FROM orders o
+        JOIN order_items oi ON oi.order_id = o.id
+        WHERE o.status = 'completed'
+          AND o.order_date >= '2025-01-01' AND o.order_date < '2026-01-01'
+        GROUP BY o.id
+    )
+
+- id: q20
+  difficulty: intermediate
+  question: "What is the average number of items per order?"
+  reference_sql: |
+    SELECT ROUND(AVG(items), 2) AS avg_items
+    FROM (
+        SELECT order_id, COUNT(*) AS items
+        FROM order_items
+        GROUP BY order_id
+    )
+
+- id: q21
+  difficulty: intermediate
+  question: "Which categories have more than 10 products?"
+  reference_sql: |
+    SELECT c.name, COUNT(*) AS products
+    FROM products p
+    JOIN categories c ON c.id = p.category_id
+    GROUP BY c.id, c.name
+    HAVING COUNT(*) > 10
+
+- id: q22
+  difficulty: intermediate
+  question: "How many units were sold per category in 2026?"
+  reference_sql: |
+    SELECT c.name, SUM(oi.quantity) AS units
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    JOIN products p ON p.id = oi.product_id
+    JOIN categories c ON c.id = p.category_id
+    WHERE o.status = 'completed'
+      AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+    GROUP BY c.id, c.name
+
+- id: q23
+  difficulty: intermediate
+  question: "How many orders were placed in each month of 2025?"
+  reference_sql: |
+    SELECT strftime('%Y-%m', order_date) AS month, COUNT(*) AS orders
+    FROM orders
+    WHERE order_date >= '2025-01-01' AND order_date < '2026-01-01'
+    GROUP BY month
+
+- id: q24
+  difficulty: intermediate
+  question: "How many products have never been ordered?"
+  reference_sql: |
+    SELECT COUNT(*) AS never_ordered
+    FROM products p
+    LEFT JOIN order_items oi ON oi.product_id = p.id
+    WHERE oi.id IS NULL
+
+- id: q25
+  difficulty: intermediate
+  question: "How many customers have placed more than one order?"
+  reference_sql: |
+    SELECT COUNT(*) AS repeat_customers
+    FROM (
+        SELECT customer_id
+        FROM orders
+        GROUP BY customer_id
+        HAVING COUNT(*) > 1
+    )
+
+- id: q26
+  difficulty: intermediate
+  question: "What percentage of all orders were refunded?"
+  reference_sql: |
+    SELECT ROUND(100.0 * SUM(CASE WHEN status = 'refunded' THEN 1 ELSE 0 END) / COUNT(*), 2) AS pct
+    FROM orders
+
+- id: q27
+  difficulty: intermediate
+  question: "What was revenue for the Computers category in 2026?"
+  reference_sql: |
+    SELECT ROUND(SUM(oi.quantity * oi.unit_price), 2) AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    JOIN products p ON p.id = oi.product_id
+    JOIN categories c ON c.id = p.category_id
+    WHERE o.status = 'completed'
+      AND c.name = 'Computers'
+      AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+
+- id: q28
+  difficulty: intermediate
+  question: "What is the average order value by channel in 2026?"
+  reference_sql: |
+    SELECT channel, ROUND(AVG(order_total), 2) AS avg_order_value
+    FROM (
+        SELECT o.id, o.channel, SUM(oi.quantity * oi.unit_price) AS order_total
+        FROM orders o
+        JOIN order_items oi ON oi.order_id = o.id
+        WHERE o.status = 'completed'
+          AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+        GROUP BY o.id
+    )
+    GROUP BY channel
+
+- id: q29
+  difficulty: intermediate
+  question: "Which five customers placed the most orders?"
+  reference_sql: |
+    SELECT c.name, COUNT(*) AS orders
+    FROM orders o
+    JOIN customers c ON c.id = o.customer_id
+    GROUP BY c.id, c.name
+    ORDER BY orders DESC
+    LIMIT 5
+  order_matters: true
+
+- id: q30
+  difficulty: intermediate
+  question: "Which products sold more than 50 units in 2026, and how many?"
+  reference_sql: |
+    SELECT p.name, SUM(oi.quantity) AS units
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    JOIN products p ON p.id = oi.product_id
+    WHERE o.status = 'completed'
+      AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+    GROUP BY p.id, p.name
+    HAVING SUM(oi.quantity) > 50
+
+- id: q31
+  difficulty: advanced
+  question: "What was revenue in each month of 2026?"
+  reference_sql: |
+    SELECT strftime('%Y-%m', o.order_date) AS month,
+           ROUND(SUM(oi.quantity * oi.unit_price), 2) AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE o.status = 'completed'
+      AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+    GROUP BY month
+    ORDER BY month
+  order_matters: true
+
+- id: q32
+  difficulty: advanced
+  question: "Which month in 2026 had the highest revenue?"
+  reference_sql: |
+    SELECT strftime('%Y-%m', o.order_date) AS month,
+           ROUND(SUM(oi.quantity * oi.unit_price), 2) AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE o.status = 'completed'
+      AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+    GROUP BY month
+    ORDER BY revenue DESC
+    LIMIT 1
+  order_matters: true
+
+- id: q33
+  difficulty: advanced
+  question: "What is the running monthly revenue total for 2026?"
+  reference_sql: |
+    SELECT month, revenue,
+           ROUND(SUM(revenue) OVER (ORDER BY month), 2) AS running_total
+    FROM (
+        SELECT strftime('%Y-%m', o.order_date) AS month,
+               SUM(oi.quantity * oi.unit_price) AS revenue
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE o.status = 'completed'
+          AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+        GROUP BY month
+    )
+    ORDER BY month
+  order_matters: true
+
+- id: q34
+  difficulty: advanced
+  question: "Which five countries generated the most revenue for completed orders in 2026?"
+  reference_sql: |
+    SELECT c.country, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    JOIN customers c ON c.id = o.customer_id
+    WHERE o.status = 'completed'
+      AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+    GROUP BY c.country
+    ORDER BY revenue DESC
+    LIMIT 5
+  order_matters: true
+
+- id: q35
+  difficulty: advanced
+  question: "What is the gross margin percentage on 2026 completed revenue?"
+  reference_sql: |
+    SELECT ROUND(
+               100.0 * (SUM(oi.quantity * oi.unit_price) - SUM(oi.quantity * p.cost))
+               / SUM(oi.quantity * oi.unit_price),
+               2
+           ) AS gross_margin_pct
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    JOIN products p ON p.id = oi.product_id
+    WHERE o.status = 'completed'
+      AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+
+- id: q36
+  difficulty: advanced
+  question: "What percentage of completed orders included at least one returned item in 2026?"
+  reference_sql: |
+    SELECT ROUND(
+               100.0 * COUNT(DISTINCT CASE WHEN r.id IS NOT NULL THEN o.id END)
+               / COUNT(DISTINCT o.id),
+               2
+           ) AS pct_with_return
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
+    LEFT JOIN returns r ON r.order_item_id = oi.id
+    WHERE o.status = 'completed'
+      AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+
+- id: q37
+  difficulty: advanced
+  question: "What was the average discount percentage across all order items?"
+  reference_sql: |
+    SELECT ROUND(100.0 * (1 - AVG(oi.unit_price / p.unit_price)), 2) AS avg_discount_pct
+    FROM order_items oi
+    JOIN products p ON p.id = oi.product_id
+
+- id: q38
+  difficulty: advanced
+  question: "How many orders contained more than three distinct products?"
+  reference_sql: |
+    SELECT COUNT(*) AS orders
+    FROM (
+        SELECT order_id
+        FROM order_items
+        GROUP BY order_id
+        HAVING COUNT(DISTINCT product_id) > 3
+    )
+
+- id: q39
+  difficulty: advanced
+  question: "What is the return rate by reason for 2026, as a share of all returns that year?"
+  reference_sql: |
+    SELECT reason,
+           COUNT(*) AS returns,
+           ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM returns
+                                     WHERE return_date >= '2026-01-01'
+                                       AND return_date < '2027-01-01'), 2) AS pct
+    FROM returns
+    WHERE return_date >= '2026-01-01' AND return_date < '2027-01-01'
+    GROUP BY reason
+
+- id: q40
+  difficulty: advanced
+  question: "Which three customers spent the most on completed orders in 2026?"
+  reference_sql: |
+    SELECT c.name, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS spend
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    JOIN customers c ON c.id = o.customer_id
+    WHERE o.status = 'completed'
+      AND o.order_date >= '2026-01-01' AND o.order_date < '2027-01-01'
+    GROUP BY c.id, c.name
+    ORDER BY spend DESC
+    LIMIT 3
+  order_matters: true

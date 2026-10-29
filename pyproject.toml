@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "text2sql-agent"
+version = "0.1.0"
+description = "Ask a business question in plain English; get validated, read-only SQL back with a table and a one-line answer."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Madhav" }]
+keywords = ["text-to-sql", "llm", "sql", "sqlite", "analytics"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Topic :: Database",
+]
+dependencies = [
+  "sqlglot>=25.0",
+  "openai>=1.40",
+  "python-dotenv>=1.0",
+  "tabulate>=0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pyyaml>=6", "ruff>=0.6"]
+
+[project.scripts]
+text2sql = "text2sql.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
