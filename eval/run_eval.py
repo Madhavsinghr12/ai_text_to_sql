@@ -25,7 +25,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from text2sql.agent import TextToSQLAgent  # noqa: E402
 from text2sql.executor import execute  # noqa: E402
 from text2sql.guard import validate  # noqa: E402
-from text2sql.llm import OpenAIModel  # noqa: E402
+from text2sql.llm import ModelUnavailable, OpenAIModel  # noqa: E402
 from text2sql.schema import table_names  # noqa: E402
 from text2sql.seed import build_database  # noqa: E402
 from text2sql.testing import ScriptedModel  # noqa: E402
@@ -103,7 +103,12 @@ def main(argv: list[str] | None = None) -> int:
             summarise=False,
             today=date.today(),
         )
-        result = agent.ask(question["question"])
+        try:
+            result = agent.ask(question["question"])
+        except ModelUnavailable as exc:
+            print(f"\nerror on {question['id']}: {exc}", file=sys.stderr)
+            print("eval aborted; a partial score would be misleading.", file=sys.stderr)
+            return 3
         passed = result.ok and matches(
             expected, result.rows, question.get("order_matters", False), args.decimals
         )

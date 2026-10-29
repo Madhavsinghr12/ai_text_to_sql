@@ -1,7 +1,8 @@
 """Model transport.
 
 One client, any OpenAI-compatible endpoint: OpenAI, Groq, OpenRouter, Together,
-vLLM, LM Studio. Point ``T2SQL_BASE_URL`` at the endpoint and set a key.
+vLLM, LM Studio. Point ``T2SQL_BASE_URL`` at the endpoint and set a key. With no
+key and no endpoint, the free keyless Pollinations endpoint is used.
 """
 
 from __future__ import annotations
@@ -10,6 +11,12 @@ import os
 from typing import Protocol, runtime_checkable
 
 DEFAULT_MODEL = "gpt-4o-mini"
+PUBLIC_BASE_URL = "https://text.pollinations.ai/openai"
+PUBLIC_MODEL = "openai"
+
+
+class ModelUnavailable(RuntimeError):
+    """The endpoint refused or failed the request: rate limit, quota, auth, network."""
 
 
 @runtime_checkable
@@ -41,26 +48,32 @@ class OpenAIModel:
             pass
 
         key = api_key or os.getenv("T2SQL_API_KEY") or os.getenv("OPENAI_API_KEY")
-        if not key:
-            raise RuntimeError(
-                "No API key found. Set T2SQL_API_KEY (or OPENAI_API_KEY) in your "
-                "environment or .env file. See .env.example."
-            )
+        base_url = base_url or os.getenv("T2SQL_BASE_URL") or None
+        self.public = not key and not base_url
+        if self.public:
+            base_url = PUBLIC_BASE_URL
 
-        self.model = model or os.getenv("T2SQL_MODEL") or DEFAULT_MODEL
-        self.temperature = temperature
-        self._client = OpenAI(
-            api_key=key,
-            base_url=base_url or os.getenv("T2SQL_BASE_URL") or None,
-            timeout=timeout,
+        self.model = (
+            model or os.getenv("T2SQL_MODEL") or (PUBLIC_MODEL if self.public else DEFAULT_MODEL)
         )
+        self.base_url = base_url
+        self.temperature = temperature
+        # Keyless endpoints (Pollinations, LM Studio, vLLM) ignore the key; the client needs one.
+        self._client = OpenAI(api_key=key or "not-needed", base_url=base_url, timeout=timeout)
 
     def complete(self, messages: list[dict[str, str]]) -> str:
-        response = self._client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=self.temperature,
-        )
+        from openai import APIError
+
+        try:
+            response = self._client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=self.temperature,
+            )
+        except APIError as exc:
+            raise ModelUnavailable(
+                f"The model endpoint refused the request: {exc.message}"
+            ) from exc
         return (response.choices[0].message.content or "").strip()
 
     def __repr__(self) -> str:

@@ -143,13 +143,21 @@ even if it returns the right rows in a lucky order. `tests/test_eval.py` asserts
 
 ## Quickstart
 
+**Windows, no setup:** double-click `start.bat`. The first run creates a virtual environment and
+installs everything (needs Python 3.10+), then opens the interactive prompt.
+
+**No API key needed to try it.** With no key and no endpoint configured, it uses the free public
+[Pollinations](https://pollinations.ai) endpoint. That endpoint allows about one request every 45
+seconds per IP, so the summary sentence usually falls back to a plain one and quick follow-up
+questions get a "wait and ask again" message. For real use, add a key.
+
 ```bash
 python -m venv .venv
 .venv\Scripts\activate          # Windows
 # source .venv/bin/activate     # macOS / Linux
 
 pip install -e ".[dev]"
-cp .env.example .env            # then put a key in it
+cp .env.example .env            # optional: put a key in it
 ```
 
 ```bash
@@ -159,7 +167,8 @@ python -m text2sql --show-schema            # exactly what the model sees
 python -m text2sql "top 5 customers by spend" --json
 ```
 
-Any OpenAI-compatible endpoint works — OpenAI, Groq, OpenRouter, Together, vLLM, LM Studio:
+Any OpenAI-compatible endpoint works — OpenAI, Groq, OpenRouter, Together, vLLM, LM Studio. Local
+endpoints such as LM Studio need only `T2SQL_BASE_URL`, no key:
 
 ```dotenv
 T2SQL_API_KEY=sk-...
@@ -171,7 +180,7 @@ The demo database is generated on first run and is byte-for-byte reproducible (`
 seed, fixed as-of date), which is what makes the eval numbers stable.
 
 ```bash
-pytest                       # 101 tests
+pytest                       # 106 tests
 python eval/run_eval.py --fake
 ```
 
@@ -190,8 +199,9 @@ src/text2sql/
 eval/
   questions.yaml   40 questions + reference SQL
   run_eval.py      accuracy harness
-tests/             101 tests
+tests/             106 tests
 docs/demo.png      the screenshot above
+start.bat          Windows double-click launcher
 ```
 
 ## Design notes

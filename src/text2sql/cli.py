@@ -16,7 +16,7 @@ from pathlib import Path
 from tabulate import tabulate
 
 from text2sql.agent import Result, TextToSQLAgent
-from text2sql.llm import OpenAIModel
+from text2sql.llm import ModelUnavailable, OpenAIModel
 from text2sql.schema import render_schema
 from text2sql.seed import build_database
 
@@ -43,6 +43,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
+    if model.public and not args.json:
+        print(
+            "No API key set: using the free public endpoint (text.pollinations.ai), "
+            "limited to about one request every 45 seconds.",
+            file=sys.stderr,
+        )
+
     agent = TextToSQLAgent(
         model,
         db_path,
@@ -51,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if args.question:
-        return _report(agent.ask(args.question), args)
+        return _ask(agent, args.question, args)
 
     print("Ask a question about the store. Empty line or 'exit' to quit.")
     while True:
@@ -62,7 +69,17 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if not question or question.lower() in {"exit", "quit"}:
             return 0
-        _report(agent.ask(question), args)
+        _ask(agent, question, args)
+
+
+def _ask(agent: TextToSQLAgent, question: str, args: argparse.Namespace) -> int:
+    try:
+        result = agent.ask(question)
+    except ModelUnavailable as exc:
+        print(f"\nerror: {exc}", file=sys.stderr)
+        print("Wait a little and ask again, or set T2SQL_API_KEY in .env.", file=sys.stderr)
+        return 3
+    return _report(result, args)
 
 
 def _report(result: Result, args: argparse.Namespace) -> int:
